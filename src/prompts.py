@@ -1,6 +1,7 @@
 import streamlit as st
+from sql_connection import query
 
-QUALIFIED_TABLE_NAME = "FROSTY_SAMPLE.CYBERSYN_FINANCIAL.FINANCIAL_ENTITY_ANNUAL_TIME_SERIES"
+QUALIFIED_TABLE_NAME = "incident"
 TABLE_DESCRIPTION = """
 This table has various metrics for financial entities (also referred to as banks) since 1983.
 The user may describe the entities interchangeably as banks, financial institutions, or financial entities.
@@ -12,7 +13,7 @@ The user may describe the entities interchangeably as banks, financial instituti
 METADATA_QUERY = "SELECT VARIABLE_NAME, DEFINITION FROM FROSTY_SAMPLE.CYBERSYN_FINANCIAL.FINANCIAL_ENTITY_ATTRIBUTES_LIMITED;"
 
 GEN_SQL = """
-You will be acting as an AI Snowflake SQL Expert named Frosty.
+You will be acting as an AI MS SQL Expert named Frosty.
 Your goal is to give correct, executable sql query to users.
 You will be replying to users who will be confused if you don't respond in the character of Frosty.
 You are given one table, the table name is in <tableName> tag, the columns are in <columns> tag.
@@ -31,9 +32,12 @@ Here are 6 critical rules for the interaction you must abide:
 4. Make sure to generate a single snowflake sql code, not multiple. 
 5. You should only use the table columns given in <columns>, and the table given in <tableName>, you MUST NOT hallucinate about the table names
 6. DO NOT put numerical at the very front of sql variable.
+7. Prefix table name with dbo.
+8. WRITE DOWN names of aggregated or summary columns of generated sql in <columns> tag
+
 </rules>
 
-Don't forget to use "ilike %keyword%" for fuzzy match queries (especially for variable_name column)
+Don't forget to use "like %keyword%" for fuzzy match queries (especially for variable_name column)
 and wrap the generated sql code with ``` sql code markdown in this format e.g:
 ```sql
 (select 1) union (select 2)
@@ -48,10 +52,10 @@ Then provide 3 example questions using bullet points.
 @st.cache_data(show_spinner=False)
 def get_table_context(table_name: str, table_description: str, metadata_query: str = None):
     table = table_name.split(".")
-    conn = st.experimental_connection("snowpark")
-    columns = conn.query(f"""
-        SELECT COLUMN_NAME, DATA_TYPE FROM {table[0].upper()}.INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = '{table[1].upper()}' AND TABLE_NAME = '{table[2].upper()}'
+    ##conn = st.experimental_connection("snowpark")
+    columns = query(f"""
+        SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_NAME = '{table_name.upper()}'
         """,
     )
     columns = "\n".join(
@@ -60,6 +64,7 @@ def get_table_context(table_name: str, table_description: str, metadata_query: s
             for i in range(len(columns["COLUMN_NAME"]))
         ]
     )
+    #columns = "location\nseverity\ndatatime"
     context = f"""
 Here is the table name <tableName> {'.'.join(table)} </tableName>
 
@@ -69,15 +74,15 @@ Here are the columns of the {'.'.join(table)}
 
 <columns>\n\n{columns}\n\n</columns>
     """
-    if metadata_query:
-        metadata = conn.query(metadata_query)
-        metadata = "\n".join(
-            [
-                f"- **{metadata['VARIABLE_NAME'][i]}**: {metadata['DEFINITION'][i]}"
-                for i in range(len(metadata["VARIABLE_NAME"]))
-            ]
-        )
-        context = context + f"\n\nAvailable variables by VARIABLE_NAME:\n\n{metadata}"
+    # if metadata_query:
+    #     metadata = conn.query(metadata_query)
+    #     metadata = "\n".join(
+    #         [
+    #             f"- **{metadata['VARIABLE_NAME'][i]}**: {metadata['DEFINITION'][i]}"
+    #             for i in range(len(metadata["VARIABLE_NAME"]))
+    #         ]
+    #     )
+    #     context = context + f"\n\nAvailable variables by VARIABLE_NAME:\n\n{metadata}"
     return context
 
 def get_system_prompt():

@@ -1,0 +1,5 @@
+sql prompt => https://chat.openai.com/share/970657c3-49c3-4d43-b00f-a277b39e434a
+
+data schema => https://chat.openai.com/share/7312f7d8-f8e0-4392-a3b8-f3285aa7a401
+
+gps point => https://chat.openai.com/share/6ae1e518-ad8f-4169-aa17-12e88a63ba12
